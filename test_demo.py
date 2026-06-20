@@ -1,5 +1,3 @@
-# test_demo.py
-
 import argparse
 import os
 import sys
@@ -39,30 +37,65 @@ def main():
     help="Number of test iterations to execute (default: 1000)"
   )
   parser.add_argument(
+    "-c", "--corpus",
+    type=str,
+    default=None,
+    help="Path to a corpus CSV file to run tests against instead of generating data on the fly"
+  )
+  parser.add_argument(
     "-v", "--verbose",
     action="store_true",
     help="Show detailed output for each individual test case"
   )
+
   if len(sys.argv) == 1:
     parser.print_help()
     sys.exit(0)
+
   args = parser.parse_args()
   total_runs = args.runs
   py_success = 0
   ann_success = 0
   both_match = 0
+
+  # 1. Acquire Input Data Source
+  input_sequences = []
+  if args.corpus:
+    if not os.path.exists(args.corpus):
+      print(f"Error: Corpus file '{args.corpus}' not found.")
+      sys.exit(1)
+    with open(args.corpus, "r", encoding="utf-8") as f:
+      for line in f:
+        line = line.strip()
+        if line and "," in line:
+          input_str, _ = line.split(",")
+          input_sequences.append(list(input_str))
+
+    # Cap total runs if corpus size is smaller than requested iterations
+    if len(input_sequences) < total_runs:
+      total_runs = len(input_sequences)
+    input_sequences = input_sequences[:total_runs]
+    source_msg = f"Corpus File '{args.corpus}'"
+  else:
+    for _ in range(total_runs):
+      input_sequences.append(generate_constrained_sequence())
+    source_msg = "Dynamic On-The-Fly Generation"
+
   print("=" * 60)
-  print(f"Executing {total_runs} Test Cases with Alphabet {list(ALPHABET)}...")
+  print(f"Executing {total_runs} Test Cases via {source_msg}...")
   print("=" * 60)
-  for idx in range(total_runs):
-    input_seq = generate_constrained_sequence()
+
+  # 2. Evaluate Sequences
+  for input_seq in input_sequences:
     ground_truth = traditional_rle(input_seq)
     py_res = None
     ann_res = None
+
     if args.module in ["rle_py", "both"]:
       py_res = traditional_rle(input_seq)
       if py_res == ground_truth:
         py_success += 1
+
     if args.module in ["rle_ann", "both"]:
       try:
         ann_res = neural_network_rle(input_seq)
@@ -70,9 +103,11 @@ def main():
           ann_success += 1
       except Exception:
         ann_res = "ERROR"
+
     if args.module == "both":
       if py_res == ann_res and ann_res != "ERROR":
         both_match += 1
+
     if args.verbose:
       if args.module == "rle_py":
         passed = (py_res == ground_truth)
@@ -85,13 +120,16 @@ def main():
         py_str = " ".join(map(str, py_res))
         ann_str = " ".join(map(str, ann_res)) if isinstance(ann_res, list) else str(ann_res)
         out_str = f"PY: {py_str} | ANN: {ann_str}"
+
       chk = "[x]" if passed else "[ ]"
       in_str = " ".join(map(str, input_seq))
       print(f"{chk} {in_str}  ->  {out_str}")
+
   print("=" * 40)
   print("         RLE TESTER STATISTICS")
   print("=" * 40)
   print(f"Target Module: {args.module}")
+  print(f"Data Source:   {source_msg}")
   print(f"Total Runs:    {total_runs}")
   print("-" * 40)
   if args.module == "rle_py":
