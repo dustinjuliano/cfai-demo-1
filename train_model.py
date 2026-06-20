@@ -1,7 +1,10 @@
+# train_model.py
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import os
+import sys
 
 # Hardware detection
 device = torch.device(
@@ -11,79 +14,68 @@ device = torch.device(
 )
 print(f"--> Training on device: {device.type.upper()}\n")
 
-ALPHABET = ("A", "B")
+def load_balanced_corpus(filename="rle_corpus.csv"):
+  """
+  Reads the space-optimized CSV corpus from disk, converts strings
+  into numerical features, and builds the training tensors.
+  """
+  if not os.path.exists(filename):
+    print(f"Error: {filename} not found. Please run corpus.py first.")
+    sys.exit(1)
 
-def generate_training_data(num_samples=30000):
   X_list = []
   Y_list = []
 
-  for _ in range(num_samples):
-    seq = []
-    while len(seq) < 8:
-      remaining_space = 8 - len(seq)
-      symbol_byte = os.urandom(1)[0]
-      symbol = ALPHABET[symbol_byte % len(ALPHABET)]
-      length_byte = os.urandom(1)[0]
-      run_length = 1 + (length_byte % remaining_space)
-      seq.extend([symbol] * run_length)
+  print(f"Loading dataset from '{filename}'...")
+  with open(filename, mode="r", encoding="utf-8") as f:
+    for line in f:
+      line = line.strip()
+      if not line or "," not in line:
+        continue
 
-    # Convert input symbols to One-Hot Encoding
-    one_hot_input = []
-    for sym in seq:
-      if sym == "A":
-        one_hot_input.extend([1.0, 0.0])
-      else:
-        one_hot_input.extend([0.0, 1.0])
+      input_str, output_str = line.split(",")
 
-    # Calculate pure RLE pairs
-    rle_pairs = []
-    current_val = seq[0]
-    current_count = 1
-    for val in seq[1:]:
-      if val == current_val:
-        current_count += 1
-      else:
-        rle_pairs.append(current_val)
-        rle_pairs.append(current_count)
-        current_val = val
-        current_count = 1
-    rle_pairs.append(current_val)
-    rle_pairs.append(current_count)
+      # 1. Rebuild One-Hot encoded input vector from the packed symbols
+      one_hot_input = []
+      for sym in input_str:
+        if sym == "A":
+          one_hot_input.extend([1.0, 0.0])
+        else:
+          one_hot_input.extend([0.0, 1.0])
 
-    # Pad or truncate to exactly 8 elements
-    if len(rle_pairs) < 8:
-      rle_pairs += [0] * (8 - len(rle_pairs))
-    else:
-      rle_pairs = rle_pairs[:8]
+      # 2. Rebuild the 11-class indices from the packed output string
+      target_indices = []
+      for char in output_str:
+        if char == "0":
+          target_indices.append(0)
+        elif char == "A":
+          target_indices.append(1)
+        elif char == "B":
+          target_indices.append(2)
+        else:
+          # Converts character digits '1'-'8' to class indices 3-10
+          target_indices.append(2 + int(char))
 
-    # Map tokens to 11 classification categories
-    target_indices = []
-    for i, token in enumerate(rle_pairs):
-      if token == 0:
-        target_indices.append(0)
-      elif i % 2 == 0:
-        target_indices.append(1 if token == "A" else 2)
-      else:
-        target_indices.append(2 + int(token))
+      X_list.append(one_hot_input)
+      Y_list.append(target_indices)
 
-    X_list.append(one_hot_input)
-    Y_list.append(target_indices)
-
+  print(f"Successfully loaded {len(X_list)} samples into memory.")
   return torch.tensor(X_list, dtype=torch.float32), torch.tensor(Y_list, dtype=torch.long)
 
-X_train, Y_train = generate_training_data(30000)
+# Load the perfectly balanced corpus from disk
+X_train, Y_train = load_balanced_corpus("rle_corpus.csv")
 
 class RLEClassificationModel(nn.Module):
   def __init__(self):
     super(RLEClassificationModel, self).__init__()
     self.network = nn.Sequential(
-      nn.Linear(16, 256),
+      nn.Linear(16, 256),  # 16 inputs (8 symbols * 2 one-hot features)
       nn.ReLU(),
-      nn.Linear(256, 256),
+      nn.Linear(256, 256), # Expanded hidden layers for perfect boundary mapping
       nn.ReLU(),
       nn.Linear(256, 128),
       nn.ReLU(),
-      nn.Linear(128, 88)
+      nn.Linear(128, 88)   # Output: 8 slots * 11 classes per slot = 88 units
     )
 
   def forward(self, x):
@@ -109,6 +101,8 @@ for epoch in range(epochs):
     batch_y = Y_train[indices].to(device)
 
     predictions = model(batch_x)
+
+    # Flatten shapes for CrossEntropy tracking evaluation
     loss = criterion(predictions.view(-1, 11), batch_y.view(-1))
 
     optimizer.zero_grad()

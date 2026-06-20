@@ -1,4 +1,5 @@
 .DS_Store
 *.pyc
 makefile
+rle_corpus.csv
 
