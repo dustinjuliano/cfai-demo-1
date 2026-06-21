@@ -1,6 +1,6 @@
 ## Introduction
 
-This project serves as Artifact #1 in the "Concepts of Formal AI" (CFAI) series, developed specifically for use in educational materials and presentations. It explores the foundational premise that every artificial intelligence model is, ultimately, equivalent to a computer program. Grounded in the Church-Turing thesis, we empirically observe this truth whenever a neural network executes on deterministic hardware. This artifact demonstrates strict observational equivalence between a deterministic Python script and a Multilayer Perceptron (MLP), both replicating Run-Length Encoding (RLE) logic with 100% accuracy within a closed universe.
+This project serves as Artifact 1 in the "Concepts of Formal AI" (CFAI) series, developed specifically for use in educational materials and presentations. It explores the foundational premise that every artificial intelligence model is, ultimately, equivalent to a computer program. Grounded in the Church-Turing thesis, we empirically observe this truth whenever a neural network executes on deterministic hardware. This artifact demonstrates strict observational equivalence between a deterministic Python script and a Multilayer Perceptron (MLP), both replicating Run-Length Encoding (RLE) logic with 100% accuracy within a closed universe.
 
 We can analyze this relationship through several theoretical lenses:
 
@@ -9,7 +9,7 @@ We can analyze this relationship through several theoretical lenses:
 * **Strong Isomorphism:** A theoretical state where the internal architectures map perfectly onto one another. Because of the fundamental differences between state machines and feedforward networks, this project exhibits weak equivalence rather than strong isomorphism.
 * **Information Loss:** Analyzing what operational details are abstracted away or lost when transitioning from a strict, step-by-step algorithm to a continuous weight matrix.
 
-While these lenses provide analytical depth, the primary objective is to illustrate the core thesis of Formal AI. Rather than treating machine learning as an opaque statistical phenomenon, Formal AI acknowledges its programmatic reality and flips the paradigm: we should deliberately construct AI systems as transparent, human-readable computer programs and data from the start.
+While these lenses provide analytical depth, the primary objective is to illustrate the core thesis of Formal AI. Rather than treating machine learning as an opaque statistical phenomenon, Formal AI acknowledges its programmatic reality and flips the paradigm: we should deliberately construct AI systems as human-readable computer programs and data from the start.
 
 ## 1. Development Iterations
 
